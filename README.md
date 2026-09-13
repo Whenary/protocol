@@ -74,4 +74,4 @@ See [`SECURITY.md`](SECURITY.md) for the vulnerability disclosure policy and the
 
 ## License
 
-Apache-2.0. See [`LICENSE`](../../LICENSE) for the full text (includes patent grant).
+Apache-2.0. See [`LICENSE`](LICENSE) for the full text (includes patent grant).
