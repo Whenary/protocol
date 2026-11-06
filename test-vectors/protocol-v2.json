@@ -1,13 +1,7 @@
 {
   "version": "2",
   "description": "Whenary E2EE Protocol v2: known-answer test vectors",
-  "note": "XEdDSA variant. Deterministic nonce via SHA-512(DOMAIN||key||msg). Sign-bit normalization per spec §3.",
-  "cross_validated": {
-    "hkdf_sha256": "Python cryptography 3.x HKDF-SHA-256",
-    "aes_256_gcm": "Python cryptography 3.x AESGCM",
-    "x25519_ecdh": "RFC 7748 §6.1 reference values",
-    "xeddsa": "Pure-Python Ed25519 verifier (Edwards25519 group law)"
-  },
+  "note": "XEdDSA variant with deterministic nonce r = LE(SHA-512(SHA-512(DOMAIN || privateKey) || message)) mod l and sign-bit normalization per specification §3.",
   "primitives": {
     "hkdf_sha256": [
       {
@@ -30,7 +24,7 @@
       },
       {
         "id": "record-purpose-key",
-        "description": "HKDF-SHA-256 purpose-key derivation with zero salt (derivePurposeKey pattern)",
+        "description": "HKDF-SHA-256 purpose key derivation with zero salt",
         "ikm": "0303030303030303030303030303030303030303030303030303030303030303",
         "salt": "0000000000000000000000000000000000000000000000000000000000000000",
         "info": "whenary.e2ee.record.v2",
@@ -62,7 +56,7 @@
     "x25519_ecdh": [
       {
         "id": "rfc7748-alice-bob",
-        "description": "X25519 ECDH from RFC 7748 §6.1: both parties compute the same shared secret",
+        "description": "X25519 ECDH from RFC 7748 Section 6.1",
         "alice_private": "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a",
         "alice_public": "8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a",
         "bob_private": "5dab087e624a8a4b79e17f8b83800ee66f3bb1292618b6fd1c2f8b27ff88e0eb",
@@ -73,14 +67,14 @@
     "xeddsa": [
       {
         "id": "alice-sign-message",
-        "description": "Whenary XEdDSA sign+verify using RFC 7748 Alice key. Signing pub key has sign bit 0 (normalized).",
-        "domain_separator": "whenary.identity.xeddsa.v1",
         "algorithm": "XEdDSA-SHA512",
+        "description": "Whenary XEdDSA: sign + verify using RFC 7748 Alice key",
+        "domain_separator": "whenary.identity.xeddsa.v1",
         "private_key": "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a",
         "signing_pub_key": "8120f299c37ae1ca64a179f638a6c6fafde968f1c33705e28c413c7579d9884f",
         "message": "7768656e617279207865646473612074657374206d657373616765207632",
         "signature": "eb31dcee659f1208781ace1f7838caf49d6eaabb56d51f0ef785ff9a1dacf47a64ec62bec3ce0b7a7ae263e7f9182ffba811c3300b064d8a25351f4ac3fd5e02",
-        "note": "Nonce: r = LE(SHA-512(SHA-512(DOMAIN||key) || message)) mod l. Scalar negated because naive scalar*B had sign bit 1."
+        "note": "Deterministic nonce: r = LE(SHA-512(SHA-512(DOMAIN||key) || message)) mod l. Sign-bit normalized per spec."
       }
     ]
   }

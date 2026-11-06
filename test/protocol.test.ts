@@ -7,6 +7,7 @@ import {
   isE2eeEnvelope,
   mediaChunkAad,
   metadataIntegrityAad,
+  identityEpochPayload,
   notificationAad,
   parseE2eeEnvelope,
   parseNotificationEnvelope,
@@ -16,6 +17,7 @@ import {
   serializeNotificationEnvelope,
   webauthnPrfEvalSalt,
 } from '../src/protocol.js';
+import { aesGcmDecrypt, aesGcmEncrypt, importRawAesKey, randomBytes } from '../src/primitives.js';
 
 const IV = 'AAECAwQFBgcICQoL';
 const CIPHERTEXT = 'AAECAwQFBgcICQoLDA0ODw==';
@@ -30,6 +32,9 @@ describe('crypto protocol contexts', () => {
     );
     expect(notificationAad(CRYPTO_PROTOCOL_VECTORS.notificationContext.input)).toBe(
       CRYPTO_PROTOCOL_VECTORS.notificationContext.aad,
+    );
+    expect(identityEpochPayload(CRYPTO_PROTOCOL_VECTORS.identityEpoch.input)).toBe(
+      CRYPTO_PROTOCOL_VECTORS.identityEpoch.payload,
     );
   });
 
@@ -51,7 +56,13 @@ describe('crypto protocol contexts', () => {
     );
     expect(
       metadataIntegrityAad(
-        { resource: 'calendar-event', scopeId: 'cal', recordId: 'evt', field: 'metadata', keyVersion: 1 },
+        {
+          resource: 'calendar-event',
+          scopeId: 'cal',
+          recordId: 'evt',
+          field: 'metadata',
+          keyVersion: 1,
+        },
         canonicalEventMetadata(meta),
       ),
     ).toContain('whenary.e2ee.metadata-integrity.v1');
@@ -181,5 +192,43 @@ describe('WebAuthn PRF salt', () => {
     expect(Buffer.from(a)).toEqual(Buffer.from(b));
     expect(Buffer.from(a)).not.toEqual(Buffer.from(other));
     expect(new TextDecoder().decode(a).startsWith(CRYPTO_KEY_PURPOSES.prfKek)).toBe(true);
+  });
+});
+
+describe('record binding at decryption', () => {
+  it('opens a record only when the resource, scope, record, and field match', async () => {
+    const key = await importRawAesKey(randomBytes(32));
+    const marker = 'pb-record-marker';
+    const context = {
+      resource: 'space-message' as const,
+      scopeId: 'space-a',
+      recordId: 'message-a',
+      field: 'body',
+      keyVersion: 1,
+    };
+    const sealed = await aesGcmEncrypt(key, new TextEncoder().encode(marker), recordAad(context));
+    expect(new TextDecoder().decode(await aesGcmDecrypt(key, sealed, recordAad(context)))).toBe(
+      marker,
+    );
+    await expect(
+      aesGcmDecrypt(key, sealed, recordAad({ ...context, recordId: 'message-b' })),
+    ).rejects.toThrow();
+    await expect(
+      aesGcmDecrypt(key, sealed, recordAad({ ...context, scopeId: 'space-b' })),
+    ).rejects.toThrow();
+    await expect(
+      aesGcmDecrypt(key, sealed, recordAad({ ...context, field: 'title' })),
+    ).rejects.toThrow();
+    const laterContext = { ...context, recordId: 'message-after-removal' };
+    const laterMarker = 'pb-later-record-marker';
+    const later = await aesGcmEncrypt(
+      key,
+      new TextEncoder().encode(laterMarker),
+      recordAad(laterContext),
+    );
+    expect(new TextDecoder().decode(await aesGcmDecrypt(key, later, recordAad(laterContext)))).toBe(
+      laterMarker,
+    );
+    await expect(aesGcmDecrypt(key, later, recordAad(context))).rejects.toThrow();
   });
 });

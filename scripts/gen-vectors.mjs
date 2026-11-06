@@ -156,7 +156,7 @@ async function main() {
   const vectors = {
     version: '2',
     description: 'Whenary E2EE Protocol v2: known-answer test vectors',
-    note: 'XEdDSA variant. Deterministic nonce via SHA-512(DOMAIN||key||msg). Sign-bit normalization per spec §3.',
+    note: 'XEdDSA variant with deterministic nonce r = LE(SHA-512(SHA-512(DOMAIN || privateKey) || message)) mod l and sign-bit normalization per specification §3.',
     primitives: {
       hkdf_sha256: [
         {
@@ -186,6 +186,15 @@ async function main() {
           length: 32,
           okm:  bytesToHex(hkdfRecordPurpose),
         },
+        {
+          id: 'ecdh-kek',
+          description: 'HKDF-SHA-256 KEK derivation from X25519 shared secret',
+          ikm: bytesToHex(sharedAtoB),
+          salt: bytesToHex(FIXED_SALT_16),
+          info: 'whenary.e2ee.kek.ecdh.v1',
+          length: 32,
+          okm: bytesToHex(ecdhKek),
+        },
       ],
       aes_256_gcm: [
         {
@@ -208,16 +217,12 @@ async function main() {
           bob_private:   bytesToHex(RFC7748_BOB_PRIV),
           bob_public:    bytesToHex(bobPub),
           shared_secret: bytesToHex(sharedAtoB),
-          ecdh_kek: {
-            salt: bytesToHex(FIXED_SALT_16),
-            info: 'whenary.e2ee.kek.ecdh.v1',
-            okm:  bytesToHex(ecdhKek),
-          },
         },
       ],
       xeddsa: [
         {
           id: 'alice-sign-message',
+          algorithm: 'XEdDSA-SHA512',
           description: 'Whenary XEdDSA: sign + verify using RFC 7748 Alice key',
           domain_separator: DOMAIN,
           private_key:     bytesToHex(RFC7748_ALICE_PRIV),
